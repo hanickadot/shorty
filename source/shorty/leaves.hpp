@@ -103,34 +103,28 @@ SHORTY_EXPORT struct argument_info {
 	}
 };
 
-consteval bool validate_call(std::size_t provided, const argument_info & expected) {
-	// TODO probably throw exception here so we have nice diag
-
-	if (!expected.consistent) {
-#if __cpp_constexpr_exceptions >= 202411L
-		throw shorty_constraint_failure::inconsistent();
-#else
-		return false;
-#endif
-	}
-
-	if (expected.min > provided) {
+consteval bool validate_minimal_number_of_arguments(std::size_t provided, std::size_t expected) {
+	if (expected > provided) {
 #if __cpp_constexpr_exceptions >= 202411L
 		throw shorty_constraint_failure::not_enough();
 #else
 		return false;
 #endif
+	} else {
+		return true;
 	}
+}
 
-	if (expected.exact != std::dynamic_extent && expected.exact != provided) {
+consteval bool validate_exact_number_of_arguments(std::size_t provided, std::size_t expected) {
+	if (expected != std::dynamic_extent && expected != provided) {
 #if __cpp_constexpr_exceptions >= 202411L
 		throw shorty_constraint_failure::too_much();
 #else
 		return false;
 #endif
+	} else {
+		return true;
 	}
-
-	return true;
 }
 
 template <typename... Args> consteval std::size_t gather_number_of_arguments() {
@@ -194,8 +188,8 @@ struct ast_node {
 
 	// this is only called outside
 	// this gymnastics is also to improve error message
-	template <typename Self, typename... Args, auto info = call_info<Self>, auto argn = number_of_arguments<Args...>>
-	constexpr auto operator()(this Self && self, Args &&... args) requires(validate_call(argn, info))
+	template <typename Self, typename... Args, auto argn = number_of_arguments<Args...>, auto min_argn_expected = call_info<Self>.min, auto exact_argn_expected = call_info<Self>.exact>
+	constexpr auto operator()(this Self && self, Args &&... args) requires(validate_minimal_number_of_arguments(argn, min_argn_expected) && validate_exact_number_of_arguments(argn, exact_argn_expected))
 	{
 		if constexpr (sizeof...(Args) == 1 && tuple_like<first<Args...>>) {
 			auto && first_arg = first_thing(std::forward<Args>(args)...);
@@ -222,6 +216,8 @@ template <typename T, typename... Args> constexpr decltype(auto) evaluate(T && o
 }
 
 template <typename Op, typename... Operands> struct node: ast_node {
+	static constexpr bool consistent = (argument_info::from<std::remove_cvref_t<Operands>>() + ...).consistent;
+	static_assert(consistent, "expected number of arguments is not consistent (hint: mixing something like $lhs and $x?)");
 	using base_node = node;
 
 	static constexpr auto op = Op{};

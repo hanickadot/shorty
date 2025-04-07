@@ -8,7 +8,7 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/shorty.hpp COMMAND ${CMAKE
 	-P ${CMAKE_CURRENT_SOURCE_DIR}/generate.cmake
 	DEPENDS 
 	${CMAKE_CURRENT_SOURCE_DIR}/generate.cmake
-	shorty
+	#shorty
 )
 
 add_library(shorty-single-header INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/shorty.hpp)
