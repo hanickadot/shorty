@@ -133,6 +133,15 @@ SHORTY_EXPORT struct argument_info {
 	}
 };
 
+template <typename... Args> consteval std::size_t gather_number_of_arguments() {
+	if constexpr (sizeof...(Args) == 1 && tuple_like<first<Args...>>) {
+		const std::size_t count = std::tuple_size_v<std::remove_cvref_t<first<Args...>>>;
+		return count;
+	} else {
+		return sizeof...(Args);
+	}
+}
+
 template <typename Self, typename... Args> concept valid_call = []() -> bool {
 	if constexpr (sizeof...(Args) == 1 && tuple_like<first<Args...>>) {
 		const std::size_t count = std::tuple_size_v<std::remove_cvref_t<first<Args...>>>;
@@ -189,11 +198,13 @@ struct ast_node {
 		return node<ops::index, select<Self>, select<Args>...>{std::forward<Self>(self), std::forward<Args>(args)...};
 	}
 
-	constexpr auto deleted_operator_call() const = delete;
+	template <typename Self> static constexpr auto call_info = argument_info::from<std::remove_cvref_t<Self>>();
+	template <typename... Args> static constexpr auto number_of_arguments = gather_number_of_arguments<Args...>();
 
 	// this is only called outside
-
-	template <typename Self, typename... Args> constexpr auto operator()(this Self && self, Args &&... args) requires(valid_call<Self, Args...>)
+	// this gymnastics is also to improve error message
+	template <typename Self, typename... Args, auto info = call_info<Self>, auto argn = number_of_arguments<Args...>>
+	constexpr auto operator()(this Self && self, Args &&... args) requires(info.validate_with(argn))
 	{
 		if constexpr (sizeof...(Args) == 1 && tuple_like<first<Args...>>) {
 			auto && first_arg = first_thing(std::forward<Args>(args)...);
