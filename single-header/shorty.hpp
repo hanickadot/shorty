@@ -176,7 +176,7 @@ struct argument_info {
 		return exact == std::dynamic_extent ? provided : exact;
 	}
 
-	consteval bool validate_with(std::size_t provided) const noexcept {
+	consteval bool validate_with(std::size_t provided) const {
 		// TODO probably throw exception here so we have nice diag
 
 		if (!consistent) {
