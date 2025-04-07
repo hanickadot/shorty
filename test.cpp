@@ -26,4 +26,9 @@ int main() {
 	for (auto v: std::views::zip(a, b) | std::views::transform($0 + $1)) {
 		std::println("{}", v);
 	}
+
+	auto expr = $0 + $1;
+
+	// expr(1);
+	expr(std::tuple{1});
 }

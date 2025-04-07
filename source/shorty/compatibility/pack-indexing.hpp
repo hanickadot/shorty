@@ -19,12 +19,18 @@ template <size_t N, typename First, typename... Args> constexpr auto extract_nth
 }
 
 template <typename... Ts> using first = Ts...[0];
+template <typename... Ts> constexpr auto first_thing(Ts &&... args) {
+	return args...[0];
+}
 
 #else
 template <typename...> struct head_helper;
 template <typename Head, typename... Ts> struct head_helper<Head, Ts...> {
 	using result = Head;
 };
+template <typename Head, typename... Ts> constexpr auto first_thing(Head && head, Ts &&...) {
+	return head;
+}
 
 template <typename... Ts> using first = head_helper<Ts...>::result;
 

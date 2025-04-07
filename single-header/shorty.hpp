@@ -92,12 +92,18 @@ template <size_t N, typename First, typename... Args> constexpr auto extract_nth
 }
 
 template <typename... Ts> using first = Ts...[0];
+template <typename... Ts> constexpr auto first_thing(Ts &&... args) {
+	return args...[0];
+}
 
 #else
 template <typename...> struct head_helper;
 template <typename Head, typename... Ts> struct head_helper<Head, Ts...> {
 	using result = Head;
 };
+template <typename Head, typename... Ts> constexpr auto first_thing(Head && head, Ts &&...) {
+	return head;
+}
 
 template <typename... Ts> using first = head_helper<Ts...>::result;
 
@@ -284,20 +290,30 @@ struct ast_node {
 		return argument_info::from<std::remove_cvref_t<Self>>().validate_with(n);
 	}
 
-	template <typename Self, typename... Args> constexpr auto operator()(this Self && self, Args &&... args) requires(valid_call<Self>(sizeof...(Args)))
-	{
-		return self.eval(std::forward<Args>(args)...);
+	template <typename Self, typename Head, typename... Args> static constexpr bool valid_call_tuple() {
+		if constexpr (tuple_like<Head>) {
+			const std::size_t count = std::tuple_size_v<std::remove_cvref_t<Head>>;
+			return argument_info::from<std::remove_cvref_t<Self>>().validate_with(count);
+		} else {
+			return false;
+		}
 	}
-	template <typename Self, tuple_like TupleArgs> constexpr auto operator()(this Self && self, TupleArgs && arg) requires(valid_call<Self>(std::tuple_size_v<std::remove_cvref_t<TupleArgs>>))
+
+	template <typename Self, typename... Args> constexpr auto operator()(this Self && self, Args &&... args) requires(valid_call_tuple<Self, Args...>() || valid_call<Self>(sizeof...(Args)))
 	{
+		if constexpr (sizeof...(Args) == 1 && tuple_like<first<Args...>>) {
+			auto && first_arg = first_thing(std::forward<Args>(args)...);
 #if __cpp_structured_bindings >= 202411L
-		auto && [... args] = arg;
-		return std::forward<Self>(self).operator()(std::forward<decltype(args)>(args)...);
+			auto && [... subargs] = first_arg;
+			return std::forward<Self>(self).operator()(std::forward<decltype(subargs)>(subargs)...);
 #else
-		return [&]<std::size_t... Idx>(std::index_sequence<Idx...>) {
-			return std::forward<Self>(self).operator()(std::get<Idx>(arg)...);
-		}(std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<decltype(arg)>>>());
+			return [&]<std::size_t... Idx>(std::index_sequence<Idx...>) {
+				return std::forward<Self>(self).operator()(std::get<Idx>(first_arg)...);
+			}(std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<decltype(first_arg)>>>());
 #endif
+		} else {
+			return self.eval(std::forward<Args>(args)...);
+		}
 	}
 };
 
