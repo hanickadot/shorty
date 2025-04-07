@@ -1,0 +1,6 @@
+#ifndef SHORTY_HPP
+#define SHORTY_HPP
+
+@CONTENT_OF_SINGLE_HEADER@
+
+#endif

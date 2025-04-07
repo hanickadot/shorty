@@ -1,0 +1,35 @@
+#ifndef SHORTY_SHORTY_COMPATIBILITY_PACK_INDEXING_HPP
+#define SHORTY_SHORTY_COMPATIBILITY_PACK_INDEXING_HPP
+
+#ifdef SHORTY_IS_IN_MODULE
+// nothing :)
+#else // SHORTY_IS_IN_MODULE
+#include <utility>
+#endif // SHORTY_IS_IN_MODULE
+
+namespace shorty {
+
+#if __cpp_pack_indexing < 202311L
+template <size_t N, typename First, typename... Args> constexpr auto extract_nth(First && first, Args &&... args) noexcept {
+	if constexpr (N == 0u) {
+		return first;
+	} else {
+		return extract_nth<N - 1u>(std::forward<Args>(args)...);
+	}
+}
+
+template <typename... Ts> using first = Ts...[0];
+
+#else
+template <typename...> struct head_helper;
+template <typename Head, typename... Ts> struct head_helper<Head, Ts...> {
+	using result = Head;
+};
+
+template <typename... Ts> using first = head_helper<Ts...>::result;
+
+#endif
+
+} // namespace shorty
+
+#endif // SHORTY_SHORTY_COMPATIBILITY_PACK_INDEXING_HPP
