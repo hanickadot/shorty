@@ -285,24 +285,17 @@ struct ast_node {
 	constexpr auto deleted_operator_call() const = delete;
 
 	// this is only called outside
-	template <typename Self, typename... Args> static constexpr bool valid_call() {
+
+	template <typename Self, typename... Args> static constexpr bool validate_call() {
 		if constexpr (sizeof...(Args) == 1 && tuple_like<first<Args...>>) {
-			return false;
+			const std::size_t count = std::tuple_size_v<std::remove_cvref_t<first<Args...>>>;
+			return argument_info::from<std::remove_cvref_t<Self>>().validate_with(count);
 		} else {
 			return argument_info::from<std::remove_cvref_t<Self>>().validate_with(sizeof...(Args));
 		}
 	}
 
-	template <typename Self, typename... Args> static constexpr bool valid_call_tuple() {
-		if constexpr (sizeof...(Args) == 1 && tuple_like<first<Args...>>) {
-			const std::size_t count = std::tuple_size_v<std::remove_cvref_t<first<Args...>>>;
-			return argument_info::from<std::remove_cvref_t<Self>>().validate_with(count);
-		} else {
-			return false;
-		}
-	}
-
-	template <typename Self, typename... Args> constexpr auto operator()(this Self && self, Args &&... args) requires(valid_call_tuple<Self, Args...>() || valid_call<Self, Args...>())
+	template <typename Self, typename... Args> constexpr auto operator()(this Self && self, Args &&... args) requires(validate_call<Self, Args...>())
 	{
 		if constexpr (sizeof...(Args) == 1 && tuple_like<first<Args...>>) {
 			auto && first_arg = first_thing(std::forward<Args>(args)...);
