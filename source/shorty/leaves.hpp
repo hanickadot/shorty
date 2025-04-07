@@ -80,36 +80,6 @@ SHORTY_EXPORT struct argument_info {
 		return exact == std::dynamic_extent ? provided : exact;
 	}
 
-	consteval bool validate_with(std::size_t provided) const {
-		// TODO probably throw exception here so we have nice diag
-
-		if (!consistent) {
-#if __cpp_constexpr_exceptions >= 202411L
-			throw shorty_constraint_failure::inconsistent();
-#else
-			return false;
-#endif
-		}
-
-		if (min > provided) {
-#if __cpp_constexpr_exceptions >= 202411L
-			throw shorty_constraint_failure::not_enough();
-#else
-			return false;
-#endif
-		}
-
-		if (exact != std::dynamic_extent && exact != provided) {
-#if __cpp_constexpr_exceptions >= 202411L
-			throw shorty_constraint_failure::too_much();
-#else
-			return false;
-#endif
-		}
-
-		return true;
-	}
-
 	static constexpr argument_info from_min(std::size_t c) {
 		return {.min = c, .exact = std::dynamic_extent, .consistent = true};
 	}
@@ -133,6 +103,36 @@ SHORTY_EXPORT struct argument_info {
 	}
 };
 
+consteval bool validate_call(std::size_t provided, const argument_info & expected) {
+	// TODO probably throw exception here so we have nice diag
+
+	if (!expected.consistent) {
+#if __cpp_constexpr_exceptions >= 202411L
+		throw shorty_constraint_failure::inconsistent();
+#else
+		return false;
+#endif
+	}
+
+	if (expected.min > provided) {
+#if __cpp_constexpr_exceptions >= 202411L
+		throw shorty_constraint_failure::not_enough();
+#else
+		return false;
+#endif
+	}
+
+	if (expected.exact != std::dynamic_extent && expected.exact != provided) {
+#if __cpp_constexpr_exceptions >= 202411L
+		throw shorty_constraint_failure::too_much();
+#else
+		return false;
+#endif
+	}
+
+	return true;
+}
+
 template <typename... Args> consteval std::size_t gather_number_of_arguments() {
 	if constexpr (sizeof...(Args) == 1 && tuple_like<first<Args...>>) {
 		const std::size_t count = std::tuple_size_v<std::remove_cvref_t<first<Args...>>>;
@@ -141,15 +141,6 @@ template <typename... Args> consteval std::size_t gather_number_of_arguments() {
 		return sizeof...(Args);
 	}
 }
-
-template <typename Self, typename... Args> concept valid_call = []() -> bool {
-	if constexpr (sizeof...(Args) == 1 && tuple_like<first<Args...>>) {
-		const std::size_t count = std::tuple_size_v<std::remove_cvref_t<first<Args...>>>;
-		return argument_info::from<std::remove_cvref_t<Self>>().validate_with(count);
-	} else {
-		return argument_info::from<std::remove_cvref_t<Self>>().validate_with(sizeof...(Args));
-	}
-}();
 
 // basic ast_node which is used for ADL lookup of operators
 struct ast_node {
@@ -204,7 +195,7 @@ struct ast_node {
 	// this is only called outside
 	// this gymnastics is also to improve error message
 	template <typename Self, typename... Args, auto info = call_info<Self>, auto argn = number_of_arguments<Args...>>
-	constexpr auto operator()(this Self && self, Args &&... args) requires(info.validate_with(argn))
+	constexpr auto operator()(this Self && self, Args &&... args) requires(validate_call(argn, info))
 	{
 		if constexpr (sizeof...(Args) == 1 && tuple_like<first<Args...>>) {
 			auto && first_arg = first_thing(std::forward<Args>(args)...);
