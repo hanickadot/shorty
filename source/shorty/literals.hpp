@@ -29,42 +29,78 @@ SHORTY_EXPORT namespace shorty::literals {
 	// for niceness
 	constexpr auto $it = shorty::nth_argument_with_query<0, []<typename T> { return std::input_or_output_iterator<T>; }>{};
 
-	constexpr auto $i = shorty::nth_argument_of_k<0, 1>{};
-	constexpr auto $n = shorty::nth_argument_of_k<0, 1>{};
-	constexpr auto $k = shorty::nth_argument_of_k<0, 1>{};
+	constexpr auto $i = shorty::nth_argument_with_group<0, shorty::group<1, 'i'>>{};
+	constexpr auto $n = shorty::nth_argument_with_group<0, shorty::group<1, 'n'>>{};
+	constexpr auto $k = shorty::nth_argument_with_group<0, shorty::group<1, 'k'>>{};
 
-	constexpr auto $lhs = shorty::nth_argument_of_k<0, 2>{};
-	constexpr auto $rhs = shorty::nth_argument_of_k<1, 2>{};
+	constexpr auto $lhs = shorty::nth_argument_with_group<0, shorty::binary_ops>{};
+	constexpr auto $rhs = shorty::nth_argument_with_group<1, shorty::binary_ops>{};
 
-	constexpr auto $x = shorty::nth_argument_of_k<0, 3>{};
-	constexpr auto $y = shorty::nth_argument_of_k<1, 3>{};
-	constexpr auto $z = shorty::nth_argument_of_k<2, 3>{};
+	constexpr auto $in = shorty::nth_argument_with_group<0, shorty::unary_ops>{};
 
-	constexpr auto $a = shorty::nth_argument_of_k<0, 3>{};
-	constexpr auto $b = shorty::nth_argument_of_k<1, 3>{};
-	constexpr auto $c = shorty::nth_argument_of_k<2, 3>{};
+	constexpr auto $x = shorty::nth_argument_with_group<0, shorty::xyz>{};
+	constexpr auto $y = shorty::nth_argument_with_group<1, shorty::xyz>{};
+	constexpr auto $z = shorty::nth_argument_with_group<2, shorty::xyz>{};
 
-	// reference to external variable
-	template <typename T> constexpr auto $(T & ref) {
-		return shorty::reference<T>(ref);
+	constexpr auto $a = shorty::nth_argument_with_group<0, shorty::abc>{};
+	constexpr auto $b = shorty::nth_argument_with_group<1, shorty::abc>{};
+	constexpr auto $c = shorty::nth_argument_with_group<2, shorty::abc>{};
+	constexpr auto $d = shorty::nth_argument_with_group<3, shorty::abc>{};
+	constexpr auto $e = shorty::nth_argument_with_group<4, shorty::abc>{};
+	constexpr auto $f = shorty::nth_argument_with_group<5, shorty::abc>{};
+
+	// `$cast<T>(expr)` or `$<T>(expr)` are lazy static_cast
+	template <typename T> constexpr auto $cast(auto && arg) {
+		return node<ops::cast<T>, select<decltype(arg)>>{std::forward<decltype(arg)>(arg)};
+	}
+	template <typename T> constexpr auto $(auto && arg) {
+		return node<ops::cast<T>, select<decltype(arg)>>{std::forward<decltype(arg)>(arg)};
 	}
 
-	template <typename T> constexpr auto $(const T & ref) {
-		return shorty::reference<const T>(ref);
+	// `$<fnc>(args...)` or `$call<fnc>(args...)` are lazy function
+	template <auto Op> constexpr auto $(auto &&... arg) {
+		return node<ops::call<Op>, select<decltype(arg)>...>{std::forward<decltype(arg)>(arg)...};
 	}
 
-	//// apply function on result
-	// template <auto CustomOp> constexpr auto $(auto &&... args) {
-	//	return shorty::apply<CustomOp>(std::forward<decltype(args)>(args)...);
-	// }
-	//
-	//// cast to type
-	// template <typename T> constexpr auto $(auto &&... args) {
-	//	return shorty::cast<T>(std::forward<decltype(args)>(args)...);
-	// }
-	//
-	// compile time known constant
+	template <auto Op> constexpr auto $call(auto &&... arg) {
+		return node<ops::call<Op>, select<decltype(arg)>...>{std::forward<decltype(arg)>(arg)...};
+	}
+
+	template <typename T> concept callable = requires {
+		T::operator();
+	};
+
+	// `$<callable>(args...)` or `$call<callable>(args...)` are lazy function
+	template <callable Op> constexpr auto $(auto &&... arg) {
+		return node<ops::callable<Op>, select<decltype(arg)>...>{std::forward<decltype(arg)>(arg)...};
+	}
+	template <typename Op> constexpr auto $call(auto &&... arg) {
+		return node<ops::callable<Op>, select<decltype(arg)>...>{std::forward<decltype(arg)>(arg)...};
+	}
+
+	// `$value(VALUE)
+	constexpr auto $value(auto && ref) noexcept {
+		return shorty::value(std::forward<decltype(ref)>(ref));
+	}
+	constexpr auto $val(auto && ref) noexcept {
+		return shorty::value(std::forward<decltype(ref)>(ref));
+	}
+	// `$(REF)` or `$(CREF)`
+	constexpr auto $(auto & ref) noexcept {
+		return shorty::reference<std::remove_reference_t<decltype(ref)>>(ref);
+	}
+	constexpr auto $(const auto & ref) noexcept {
+		return shorty::reference<const std::remove_reference_t<decltype(ref)>>(ref);
+	}
+	constexpr auto $ref(auto & ref) noexcept {
+		return shorty::reference<std::remove_reference_t<decltype(ref)>>(ref);
+	}
+	constexpr auto $ref(const auto & ref) noexcept {
+		return shorty::reference<const std::remove_reference_t<decltype(ref)>>(ref);
+	}
+	// `$const<VALUE>` (CNTTP constant)
 	template <auto V> constexpr auto $const = shorty::constant<V>{};
+	template <auto V> constexpr auto $fixed = shorty::constant<V>{};
 
 } // namespace shorty::literals
 
