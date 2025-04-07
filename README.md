@@ -16,15 +16,15 @@ subject | std::views::filter(($i % 2) == 0);
 std::views::zip(A,B,C,D) | std::views::transform($a * $b + $c * $d);
 
 // call external function
-auto pythagorean = $&lt;sqrt&gt;($a * $a + $b * $b); // or $call&lt;sqrt&gt;
+auto pythagorean = $<sqrt>($a * $a + $b * $b); // or $call<sqrt>;
 pythagorean(3.0, 4.0) == 5.0;
 
 // casting
-auto to_int = $&lt;int&gt;($0); // or $cast&lt;int&gt;
+auto to_int = $<int>($0); // or $cast<int>;
 to_int(4.3) == 4; 
 
 // remap by index
-auto indices = std::vector&lt;int&gt;{...};
+auto indices = std::vector<int>{...};
 auto mapping = indices | $(data)[$i];
 ```
 
