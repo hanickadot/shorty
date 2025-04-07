@@ -285,21 +285,24 @@ struct ast_node {
 	constexpr auto deleted_operator_call() const = delete;
 
 	// this is only called outside
-	template <typename Self> static constexpr bool valid_call(std::size_t n) {
-		// TODO throw exceptions for nice diagnostics
-		return argument_info::from<std::remove_cvref_t<Self>>().validate_with(n);
+	template <typename Self, typename... Args> static constexpr bool valid_call() {
+		if constexpr (sizeof...(Args) == 1 && tuple_like<first<Args...>>) {
+			return false;
+		} else {
+			return argument_info::from<std::remove_cvref_t<Self>>().validate_with(sizeof...(Args));
+		}
 	}
 
-	template <typename Self, typename Head, typename... Args> static constexpr bool valid_call_tuple() {
-		if constexpr (tuple_like<Head>) {
-			const std::size_t count = std::tuple_size_v<std::remove_cvref_t<Head>>;
+	template <typename Self, typename... Args> static constexpr bool valid_call_tuple() {
+		if constexpr (sizeof...(Args) == 1 && tuple_like<first<Args...>>) {
+			const std::size_t count = std::tuple_size_v<std::remove_cvref_t<first<Args...>>>;
 			return argument_info::from<std::remove_cvref_t<Self>>().validate_with(count);
 		} else {
 			return false;
 		}
 	}
 
-	template <typename Self, typename... Args> constexpr auto operator()(this Self && self, Args &&... args) requires(valid_call_tuple<Self, Args...>() || valid_call<Self>(sizeof...(Args)))
+	template <typename Self, typename... Args> constexpr auto operator()(this Self && self, Args &&... args) requires(valid_call_tuple<Self, Args...>() || valid_call<Self, Args...>())
 	{
 		if constexpr (sizeof...(Args) == 1 && tuple_like<first<Args...>>) {
 			auto && first_arg = first_thing(std::forward<Args>(args)...);

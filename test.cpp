@@ -30,5 +30,5 @@ int main() {
 	auto expr = $0 + $1;
 
 	// expr(1);
-	expr(std::tuple{1});
+	expr(std::tuple{1, 2});
 }
