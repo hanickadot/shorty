@@ -213,7 +213,9 @@ struct ast_node {
 	// this is only called outside
 	// this gymnastics is also to improve error message
 	template <typename Self, typename... Args, auto argn = number_of_arguments<Args...>, auto min_argn_expected = call_info<Self>.min>
-	[[nodiscard, gnu::flatten, gnu::always_inline]] constexpr auto operator()(this Self && self, Args &&... args) requires(validate_minimal_number_of_arguments(argn, min_argn_expected))
+	[[nodiscard, gnu::flatten, gnu::always_inline]]
+	constexpr auto operator() // calling shorty
+		(this Self && self, Args &&... args) requires(validate_minimal_number_of_arguments(argn, min_argn_expected))
 	{
 		if constexpr (sizeof...(Args) == 1 && tuple_like<first<Args...>>) {
 			auto && first_arg = first_thing(std::forward<Args>(args)...);
