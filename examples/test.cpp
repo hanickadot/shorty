@@ -8,6 +8,8 @@ import std;
 #include <ranges>
 #endif
 
+#include <cassert>
+
 int main() {
 	using namespace shorty::literals;
 
@@ -37,13 +39,19 @@ int main() {
 		std::println("{}", v);
 	}
 
-	auto cast_to_int = $<int>($0);
+	[[maybe_unused]] auto cast_to_int = $<int>($0);
+	assert(cast_to_int(42.3) == 42);
 
 	// auto wrong_expr = $x + $a;
 	auto expr = $0 + $1;
+	assert(expr(1, 4) == 5);
 
 	auto make_tuple = ($0, $1, $2);
 	std::tuple<int, int, int> r = make_tuple(1, 2, 3);
+	auto [t0, t1, t2] = r;
+	assert(t0 == 1);
+	assert(t1 == 2);
+	assert(t2 == 3);
 
 	constexpr auto sum = [](shorty::tuple_like auto && tpl) {
 		return [&]<std::size_t... Idx>(std::index_sequence<Idx...>) {

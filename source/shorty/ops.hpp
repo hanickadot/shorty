@@ -111,9 +111,12 @@ struct tuplize {
 template <typename...> struct identify;
 
 struct index {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wsign-conversion"
 	static constexpr auto operator()(auto && subject, auto &&... args) noexcept(noexcept(std::forward<decltype(subject)>(subject)[std::forward<decltype(args)>(args)...])) {
 		return std::forward<decltype(subject)>(subject)[std::forward<decltype(args)>(args)...];
 	}
+#pragma clang diagnostic pop
 };
 
 template <typename T> struct cast {

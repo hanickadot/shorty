@@ -14,16 +14,12 @@ set(CMAKE_CXX_MODULE_STD 1)
 endif()
 
 include(colors)
+include(pedantic)
 
 project(shorty VERSION 1.0 LANGUAGES CXX)
 
-
 add_subdirectory(source)
 add_subdirectory(single-header EXCLUDE_FROM_ALL)
+add_subdirectory(examples EXCLUDE_FROM_ALL)
 
 
-add_executable(test test.cpp)
-target_link_libraries(test PRIVATE shorty)
-
-add_executable(test-single-header test-single-header.cpp)
-target_link_libraries(test-single-header PRIVATE shorty-single-header)

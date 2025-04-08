@@ -11,9 +11,9 @@ int main() {
 
 	std::ranges::sort(indices, $lhs < $rhs);
 
-	// for (auto v: indices | std::views::transform($(data)[$0])) {
-	//	std::println("{}", v);
-	// }
+	for (auto v: indices | std::views::transform($(data)[$<size_t>($0)])) {
+		std::println("{}", v);
+	}
 
 	std::println("zip:");
 	auto a = std::array{1, 2, 3, 4, 5};
