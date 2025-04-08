@@ -4,6 +4,7 @@
 #ifdef SHORTY_IS_IN_MODULE
 #define SHORTY_EXPORT export
 #else // SHORTY_IS_IN_MODULE
+#include "compatibility/concepts.hpp"
 #include <utility>
 #define SHORTY_EXPORT
 #endif // SHORTY_IS_IN_MODULE
@@ -77,6 +78,33 @@ struct unary_plus {
 struct unary_minus {
 	static constexpr auto operator()(auto && val) noexcept(noexcept(-std::forward<decltype(val)>(val))) {
 		return -std::forward<decltype(val)>(val);
+	}
+};
+template <typename Op = void> struct assign;
+template <typename Op> struct assign {
+	static constexpr auto operator()(auto && lhs, auto && rhs) noexcept(noexcept(std::forward<decltype(lhs)>(lhs) = Op{}(std::forward<decltype(lhs)>(lhs), std::forward<decltype(rhs)>(rhs)))) {
+		return lhs = Op{}(lhs, rhs);
+	}
+};
+
+template <> struct assign<void> {
+	static constexpr auto operator()(auto && lhs, auto && rhs) noexcept(noexcept(std::forward<decltype(lhs)>(lhs) = std::forward<decltype(rhs)>(rhs))) {
+		return std::forward<decltype(lhs)>(lhs) = std::forward<decltype(rhs)>(rhs);
+	}
+};
+
+struct tuplize {
+	static constexpr auto operator()(auto && lhs, auto && rhs) noexcept(noexcept(std::make_tuple(std::forward<decltype(lhs)>(lhs), std::forward<decltype(rhs)>(rhs)))) {
+		return std::make_tuple(std::forward<decltype(lhs)>(lhs), std::forward<decltype(rhs)>(rhs));
+	}
+	static constexpr auto operator()(tuple_like auto && lhs, auto && rhs) noexcept(noexcept(std::tuple_cat(std::forward<decltype(lhs)>(lhs), std::make_tuple(std::forward<decltype(rhs)>(rhs))))) {
+		return std::tuple_cat(std::forward<decltype(lhs)>(lhs), std::make_tuple(std::forward<decltype(rhs)>(rhs)));
+	}
+	static constexpr auto operator()(auto && lhs, tuple_like auto && rhs) noexcept(noexcept(std::tuple_cat(std::forward<decltype(lhs)>(lhs), std::make_tuple(std::forward<decltype(rhs)>(rhs))))) {
+		return std::tuple_cat(std::make_tuple(std::forward<decltype(lhs)>(lhs)), std::forward<decltype(rhs)>(rhs));
+	}
+	static constexpr auto operator()(tuple_like auto && lhs, tuple_like auto && rhs) noexcept(noexcept(std::tuple_cat(std::forward<decltype(lhs)>(lhs), std::make_tuple(std::forward<decltype(rhs)>(rhs))))) {
+		return std::tuple_cat(std::make_tuple(std::forward<decltype(lhs)>(lhs)), std::make_tuple(std::forward<decltype(rhs)>(rhs)));
 	}
 };
 

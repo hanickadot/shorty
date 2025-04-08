@@ -1,6 +1,26 @@
 #ifndef SHORTY_HPP
 #define SHORTY_HPP
 
+// nothing :)
+
+#include <array>
+#include <ranges>
+#include <tuple>
+#include <complex>
+
+namespace shorty {
+
+template <typename> constexpr bool is_tuple_like = false;
+template <typename T, std::size_t Extent> constexpr bool is_tuple_like<std::array<T, Extent>> = true;
+template <typename... Ts> constexpr bool is_tuple_like<std::tuple<Ts...>> = true;
+template <typename A, typename B> constexpr bool is_tuple_like<std::pair<A, B>> = true;
+template <typename T> constexpr bool is_tuple_like<std::complex<T>> = true;
+// TODO subrange
+
+template <typename T> concept tuple_like = is_tuple_like<std::remove_cvref_t<T>>;
+
+} // namespace shorty
+
 #include <utility>
 
 namespace shorty {
@@ -74,6 +94,33 @@ struct unary_minus {
 		return -std::forward<decltype(val)>(val);
 	}
 };
+template <typename Op = void> struct assign;
+template <typename Op> struct assign {
+	static constexpr auto operator()(auto && lhs, auto && rhs) noexcept(noexcept(std::forward<decltype(lhs)>(lhs) = Op{}(std::forward<decltype(lhs)>(lhs), std::forward<decltype(rhs)>(rhs)))) {
+		return lhs = Op{}(lhs, rhs);
+	}
+};
+
+template <> struct assign<void> {
+	static constexpr auto operator()(auto && lhs, auto && rhs) noexcept(noexcept(std::forward<decltype(lhs)>(lhs) = std::forward<decltype(rhs)>(rhs))) {
+		return std::forward<decltype(lhs)>(lhs) = std::forward<decltype(rhs)>(rhs);
+	}
+};
+
+struct tuplize {
+	static constexpr auto operator()(auto && lhs, auto && rhs) noexcept(noexcept(std::make_tuple(std::forward<decltype(lhs)>(lhs), std::forward<decltype(rhs)>(rhs)))) {
+		return std::make_tuple(std::forward<decltype(lhs)>(lhs), std::forward<decltype(rhs)>(rhs));
+	}
+	static constexpr auto operator()(tuple_like auto && lhs, auto && rhs) noexcept(noexcept(std::tuple_cat(std::forward<decltype(lhs)>(lhs), std::make_tuple(std::forward<decltype(rhs)>(rhs))))) {
+		return std::tuple_cat(std::forward<decltype(lhs)>(lhs), std::make_tuple(std::forward<decltype(rhs)>(rhs)));
+	}
+	static constexpr auto operator()(auto && lhs, tuple_like auto && rhs) noexcept(noexcept(std::tuple_cat(std::forward<decltype(lhs)>(lhs), std::make_tuple(std::forward<decltype(rhs)>(rhs))))) {
+		return std::tuple_cat(std::make_tuple(std::forward<decltype(lhs)>(lhs)), std::forward<decltype(rhs)>(rhs));
+	}
+	static constexpr auto operator()(tuple_like auto && lhs, tuple_like auto && rhs) noexcept(noexcept(std::tuple_cat(std::forward<decltype(lhs)>(lhs), std::make_tuple(std::forward<decltype(rhs)>(rhs))))) {
+		return std::tuple_cat(std::make_tuple(std::forward<decltype(lhs)>(lhs)), std::make_tuple(std::forward<decltype(rhs)>(rhs)));
+	}
+};
 
 template <typename...> struct identify;
 
@@ -106,26 +153,6 @@ template <typename Op> struct callable {
 };
 
 } // namespace shorty::ops
-
-// nothing :)
-
-#include <array>
-#include <ranges>
-#include <tuple>
-#include <complex>
-
-namespace shorty {
-
-template <typename> constexpr bool is_tuple_like = false;
-template <typename T, std::size_t Extent> constexpr bool is_tuple_like<std::array<T, Extent>> = true;
-template <typename... Ts> constexpr bool is_tuple_like<std::tuple<Ts...>> = true;
-template <typename A, typename B> constexpr bool is_tuple_like<std::pair<A, B>> = true;
-template <typename T> constexpr bool is_tuple_like<std::complex<T>> = true;
-// TODO subrange
-
-template <typename T> concept tuple_like = is_tuple_like<std::remove_cvref_t<T>>;
-
-} // namespace shorty
 
 // nothing :)
 
@@ -349,6 +376,28 @@ struct ast_node {
 	}
 	template <typename Lhs, typename Rhs> friend constexpr auto operator%(Lhs && lhs, Rhs && rhs) {
 		return node<std::modulus<>, select<Lhs>, select<Rhs>>{std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)};
+	}
+
+	template <typename Lhs, typename Rhs> friend constexpr auto operator+=(Lhs && lhs, Rhs && rhs) {
+		return node<ops::assign<std::plus<>>, select<Lhs>, select<Rhs>>{std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)};
+	}
+	template <typename Lhs, typename Rhs> friend constexpr auto operator-=(Lhs && lhs, Rhs && rhs) {
+		return node<ops::assign<std::minus<>>, select<Lhs>, select<Rhs>>{std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)};
+	}
+	template <typename Lhs, typename Rhs> friend constexpr auto operator*=(Lhs && lhs, Rhs && rhs) {
+		return node<ops::assign<std::multiplies<>>, select<Lhs>, select<Rhs>>{std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)};
+	}
+	template <typename Lhs, typename Rhs> friend constexpr auto operator/=(Lhs && lhs, Rhs && rhs) {
+		return node<ops::assign<std::divides<>>, select<Lhs>, select<Rhs>>{std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)};
+	}
+	template <typename Lhs, typename Rhs> friend constexpr auto operator%=(Lhs && lhs, Rhs && rhs) {
+		return node<ops::assign<std::modulus<>>, select<Lhs>, select<Rhs>>{std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)};
+	}
+	template <typename Self, typename Rhs> constexpr auto operator=(this Self && self, Rhs && rhs) {
+		return node<ops::assign<void>, select<Self>, select<Rhs>>{std::forward<Self>(self), std::forward<Rhs>(rhs)};
+	}
+	template <typename Lhs, typename Rhs> friend constexpr auto operator,(Lhs && lhs, Rhs && rhs) {
+		return node<ops::tuplize, select<Lhs>, select<Rhs>>{std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)};
 	}
 
 	template <typename Self> constexpr auto operator+(this Self && self) {

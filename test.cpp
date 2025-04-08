@@ -42,6 +42,9 @@ int main() {
 	// auto wrong_expr = $x + $a;
 	auto expr = $0 + $1;
 
+	auto make_tuple = ($0, $1, $2);
+	auto r = make_tuple(1, 2, 3);
+	identify<decltype(r)> i;
 	// expr(1, 2);
 	// expr(std::tuple{1});
 

@@ -197,6 +197,28 @@ struct ast_node {
 		return node<std::modulus<>, select<Lhs>, select<Rhs>>{std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)};
 	}
 
+	template <typename Lhs, typename Rhs> friend constexpr auto operator+=(Lhs && lhs, Rhs && rhs) {
+		return node<ops::assign<std::plus<>>, select<Lhs>, select<Rhs>>{std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)};
+	}
+	template <typename Lhs, typename Rhs> friend constexpr auto operator-=(Lhs && lhs, Rhs && rhs) {
+		return node<ops::assign<std::minus<>>, select<Lhs>, select<Rhs>>{std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)};
+	}
+	template <typename Lhs, typename Rhs> friend constexpr auto operator*=(Lhs && lhs, Rhs && rhs) {
+		return node<ops::assign<std::multiplies<>>, select<Lhs>, select<Rhs>>{std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)};
+	}
+	template <typename Lhs, typename Rhs> friend constexpr auto operator/=(Lhs && lhs, Rhs && rhs) {
+		return node<ops::assign<std::divides<>>, select<Lhs>, select<Rhs>>{std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)};
+	}
+	template <typename Lhs, typename Rhs> friend constexpr auto operator%=(Lhs && lhs, Rhs && rhs) {
+		return node<ops::assign<std::modulus<>>, select<Lhs>, select<Rhs>>{std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)};
+	}
+	template <typename Self, typename Rhs> constexpr auto operator=(this Self && self, Rhs && rhs) {
+		return node<ops::assign<void>, select<Self>, select<Rhs>>{std::forward<Self>(self), std::forward<Rhs>(rhs)};
+	}
+	template <typename Lhs, typename Rhs> friend constexpr auto operator,(Lhs && lhs, Rhs && rhs) {
+		return node<ops::tuplize, select<Lhs>, select<Rhs>>{std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)};
+	}
+
 	template <typename Self> constexpr auto operator+(this Self && self) {
 		return node<ops::unary_plus, select<Self>>{std::forward<Self>(self)};
 	}
