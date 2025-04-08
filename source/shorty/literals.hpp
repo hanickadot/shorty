@@ -13,6 +13,7 @@ SHORTY_EXPORT namespace shorty::literals {
 
 	constexpr auto $args = shorty::pack_arguments{};
 	constexpr auto $argc = shorty::argument_count{};
+	// constexpr auto $unused = shorty::argument_unused{}; all unused arguments will wrap into a tuple
 
 	// nth-argument
 	constexpr auto $0 = $arg<0>;
@@ -114,7 +115,6 @@ SHORTY_EXPORT namespace shorty::literals {
 	// `$const<VALUE>` (CNTTP constant)
 	template <auto V> constexpr auto $const = shorty::constant<V>{};
 	template <auto V> constexpr auto $fixed = shorty::constant<V>{};
-
 } // namespace shorty::literals
 
 #endif // SHORTY_SHORTY_LITERALS_HPP

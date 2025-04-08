@@ -56,10 +56,20 @@ By default arguments are accessible using `$0`...`$9` syntax (for first 10) or `
 - `$<callable>(args...)` or `$call<callable>(args...)` call `callable` with arguments `args`
 - `$<CallableType>(args...)` or `$call<CallableType>(args...)` call new instance of type `CallableType` with arguments `args`
 
-(TODO: calling also unwraps tuple for you)
-
 ## casting
 
 - `$<T>(expr)` or `$cast<T>(expr)` will `static_cast` expression result into `T`
+	
+## making a tuple
 
+- `($a, $b, $c)` - will make `tuple<auto,auto,auto>`
+- `($0, $1)` - will make `tuple<auto,auto>`
 
+## assigning
+
+- `$a += 2` will add 2 to `$a` and return resul
+- `-=`, `*=`, `/=`, `%=` all works too
+
+----
+
+Special thanks (and a bit of hate) to an [anonymous Argentinian](https://bsky.app/profile/kaballo86.bsky.social) for nerd-snipping into this.

@@ -2,7 +2,7 @@
 #define SHORTY_SHORTY_COMPATIBILITY_PACK_INDEXING_HPP
 
 #ifdef SHORTY_IS_IN_MODULE
-// nothing :)
+#define SHORTY_EXPORT export
 #else // SHORTY_IS_IN_MODULE
 #include <utility>
 #endif // SHORTY_IS_IN_MODULE

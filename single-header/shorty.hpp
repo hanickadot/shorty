@@ -1,8 +1,6 @@
 #ifndef SHORTY_HPP
 #define SHORTY_HPP
 
-// nothing :)
-
 #include <array>
 #include <ranges>
 #include <tuple>
@@ -150,11 +148,13 @@ template <typename Op> struct callable {
 	static constexpr auto operator()(auto &&... args) noexcept(noexcept(Op{}(std::forward<decltype(args)>(args)...))) {
 		return Op{}(std::forward<decltype(args)>(args)...);
 	}
+	// unwrap tuple for us
+	static constexpr auto operator()(tuple_like auto && tuple_arg) noexcept(noexcept(std::apply(callable::operator(), std::forward<decltype(tuple_arg)>(tuple_arg)))) {
+		return std::apply(callable::operator(), std::forward<decltype(tuple_arg)>(tuple_arg));
+	}
 };
 
 } // namespace shorty::ops
-
-// nothing :)
 
 #include <utility>
 
@@ -573,6 +573,7 @@ template <unsigned N> constexpr auto $arg = shorty::nth_argument<N>{};
 
 constexpr auto $args = shorty::pack_arguments{};
 constexpr auto $argc = shorty::argument_count{};
+// constexpr auto $unused = shorty::argument_unused{}; all unused arguments will wrap into a tuple
 
 // nth-argument
 constexpr auto $0 = $arg<0>;
@@ -674,7 +675,6 @@ constexpr auto $ref(const auto & ref) noexcept {
 // `$const<VALUE>` (CNTTP constant)
 template <auto V> constexpr auto $const = shorty::constant<V>{};
 template <auto V> constexpr auto $fixed = shorty::constant<V>{};
-
 } // namespace shorty::literals
 
 template <typename...> struct identify;

@@ -136,6 +136,10 @@ template <typename Op> struct callable {
 	static constexpr auto operator()(auto &&... args) noexcept(noexcept(Op{}(std::forward<decltype(args)>(args)...))) {
 		return Op{}(std::forward<decltype(args)>(args)...);
 	}
+	// unwrap tuple for us
+	static constexpr auto operator()(tuple_like auto && tuple_arg) noexcept(noexcept(std::apply(callable::operator(), std::forward<decltype(tuple_arg)>(tuple_arg)))) {
+		return std::apply(callable::operator(), std::forward<decltype(tuple_arg)>(tuple_arg));
+	}
 };
 
 } // namespace shorty::ops

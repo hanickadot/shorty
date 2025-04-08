@@ -43,10 +43,21 @@ int main() {
 	auto expr = $0 + $1;
 
 	auto make_tuple = ($0, $1, $2);
-	auto r = make_tuple(1, 2, 3);
-	identify<decltype(r)> i;
-	// expr(1, 2);
-	// expr(std::tuple{1});
+	std::tuple<int, int, int> r = make_tuple(1, 2, 3);
+
+	constexpr auto sum = [](shorty::tuple_like auto && tpl) {
+		return [&]<std::size_t... Idx>(std::index_sequence<Idx...>) {
+			return (std::get<Idx>(tpl) + ... + 0);
+		}(std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<decltype(tpl)>>>());
+	};
+
+	auto test = $<sum>(($0, $1, $2, $3)); // double paranthesis are explicit, so we get tuple
+	auto r2 = test(1, 2, 3, 4);
+	std::println("{} == 10", r2);
+
+	// identify<decltype(r)> i;
+	//  expr(1, 2);
+	//  expr(std::tuple{1});
 
 	// auto expr2 = $lhs + $x;
 }
