@@ -26,6 +26,19 @@ SHORTY_EXPORT namespace shorty::literals {
 	constexpr auto $8 = $arg<8>;
 	constexpr auto $9 = $arg<9>;
 
+#if __cpp_template_parameters >= 202502L
+	template <template <typename> concept C> constexpr auto @0 = $arg<0>;
+	template <template <typename> concept C> constexpr auto @1 = $arg<1>;
+	template <template <typename> concept C> constexpr auto @2 = $arg<2>;
+	template <template <typename> concept C> constexpr auto @3 = $arg<3>;
+	template <template <typename> concept C> constexpr auto @4 = $arg<4>;
+	template <template <typename> concept C> constexpr auto @5 = $arg<5>;
+	template <template <typename> concept C> constexpr auto @6 = $arg<6>;
+	template <template <typename> concept C> constexpr auto @7 = $arg<7>;
+	template <template <typename> concept C> constexpr auto @8 = $arg<8>;
+	template <template <typename> concept C> constexpr auto @9 = $arg<9>;
+#endif
+
 	// for niceness
 	constexpr auto $it = shorty::nth_argument_with_query<0, []<typename T> { return std::input_or_output_iterator<T>; }>{};
 

@@ -133,21 +133,14 @@ template <typename T> concept tuple_like = is_tuple_like<std::remove_cvref_t<T>>
 
 namespace shorty {
 
-#if __cpp_pack_indexing < 202311L
-template <size_t N, typename First, typename... Args> constexpr auto extract_nth(First && first, Args &&... args) noexcept {
-	if constexpr (N == 0u) {
-		return first;
-	} else {
-		return extract_nth<N - 1u>(std::forward<Args>(args)...);
-	}
-}
-
+#if __cpp_pack_indexing >= 202311L
 template <typename... Ts> using first = Ts...[0];
 template <typename... Ts> constexpr auto first_thing(Ts &&... args) {
 	return args...[0];
 }
 
 #else
+
 template <typename...> struct head_helper;
 template <typename Head, typename... Ts> struct head_helper<Head, Ts...> {
 	using result = Head;
@@ -157,6 +150,14 @@ template <typename Head, typename... Ts> constexpr auto first_thing(Head && head
 }
 
 template <typename... Ts> using first = head_helper<Ts...>::result;
+
+template <size_t N, typename First, typename... Args> constexpr auto extract_nth(First && first, Args &&... args) noexcept {
+	if constexpr (N == 0u) {
+		return first;
+	} else {
+		return extract_nth<N - 1u>(std::forward<Args>(args)...);
+	}
+}
 
 #endif
 
@@ -366,7 +367,7 @@ struct ast_node {
 	// this is only called outside
 	// this gymnastics is also to improve error message
 	template <typename Self, typename... Args, auto argn = number_of_arguments<Args...>, auto min_argn_expected = call_info<Self>.min>
-	[[nodiscard]] constexpr auto operator()(this Self && self, Args &&... args) requires(validate_minimal_number_of_arguments(argn, min_argn_expected))
+	[[nodiscard, gnu::flatten, gnu::always_inline]] constexpr auto operator()(this Self && self, Args &&... args) requires(validate_minimal_number_of_arguments(argn, min_argn_expected))
 	{
 		if constexpr (sizeof...(Args) == 1 && tuple_like<first<Args...>>) {
 			auto && first_arg = first_thing(std::forward<Args>(args)...);
@@ -533,6 +534,17 @@ constexpr auto $6 = $arg<6>;
 constexpr auto $7 = $arg<7>;
 constexpr auto $8 = $arg<8>;
 constexpr auto $9 = $arg<9>;
+
+template <template <typename> concept C> constexpr auto @0 = $arg<0>;
+template <template <typename> concept C> constexpr auto @1 = $arg<1>;
+template <template <typename> concept C> constexpr auto @2 = $arg<2>;
+template <template <typename> concept C> constexpr auto @3 = $arg<3>;
+template <template <typename> concept C> constexpr auto @4 = $arg<4>;
+template <template <typename> concept C> constexpr auto @5 = $arg<5>;
+template <template <typename> concept C> constexpr auto @6 = $arg<6>;
+template <template <typename> concept C> constexpr auto @7 = $arg<7>;
+template <template <typename> concept C> constexpr auto @8 = $arg<8>;
+template <template <typename> concept C> constexpr auto @9 = $arg<9>;
 
 // for niceness
 constexpr auto $it = shorty::nth_argument_with_query<0, []<typename T> { return std::input_or_output_iterator<T>; }>{};

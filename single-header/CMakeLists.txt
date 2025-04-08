@@ -1,5 +1,7 @@
 add_custom_target(single-header DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/shorty.hpp)
 
+message(STATUS "${SHORTY_HEADERS}")
+
 add_custom_command(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/shorty.hpp COMMAND ${CMAKE_COMMAND} 	-DINPUT=${CMAKE_SOURCE_DIR}/source/shorty/shorty.hpp
 	-DTEMPORARY=${CMAKE_CURRENT_BINARY_DIR}/tmp.hpp
 	-DTEMPLATE=${CMAKE_CURRENT_SOURCE_DIR}/shorty.hpp.in
@@ -8,7 +10,7 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/shorty.hpp COMMAND ${CMAKE
 	-P ${CMAKE_CURRENT_SOURCE_DIR}/generate.cmake
 	DEPENDS 
 	${CMAKE_CURRENT_SOURCE_DIR}/generate.cmake
-	#shorty
+	${SHORTY_HEADERS}
 )
 
 add_library(shorty-single-header INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/shorty.hpp)
