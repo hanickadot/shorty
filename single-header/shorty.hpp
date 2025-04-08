@@ -3,7 +3,32 @@
 
 #include <utility>
 
+namespace shorty {
+// groups
+struct default_group {
+	// no parameter
+};
+struct binary_ops {
+	static constexpr std::size_t arity = 2;
+};
+struct unary_ops {
+	static constexpr std::size_t arity = 1;
+};
+template <std::size_t Arity, auto> struct group {
+	static constexpr std::size_t arity = Arity;
+};
+struct xyz {
+};
+struct abc {
+};
+struct ink {
+};
+
+} // namespace shorty
+
 namespace shorty::ops {
+
+// ops
 struct compare {
 	static constexpr auto operator()(auto && lhs, auto && rhs) noexcept(noexcept(std::forward<decltype(lhs)>(lhs) <=> std::forward<decltype(rhs)>(rhs))) {
 		return std::forward<decltype(lhs)>(lhs) <=> std::forward<decltype(rhs)>(rhs);
@@ -49,11 +74,37 @@ struct unary_minus {
 		return -std::forward<decltype(val)>(val);
 	}
 };
+
+template <typename...> struct identify;
+
 struct index {
 	static constexpr auto operator()(auto && subject, auto &&... args) noexcept(noexcept(std::forward<decltype(subject)>(subject)[std::forward<decltype(args)>(args)...])) {
 		return std::forward<decltype(subject)>(subject)[std::forward<decltype(args)>(args)...];
 	}
 };
+
+template <typename T> struct cast {
+	static constexpr auto operator()(auto && arg) noexcept(noexcept(static_cast<T>(std::forward<decltype(arg)>(arg)))) {
+		return static_cast<T>(std::forward<decltype(arg)>(arg));
+	}
+};
+
+template <auto Op> struct call {
+	static constexpr auto operator()(auto &&... args) noexcept(noexcept(Op(std::forward<decltype(args)>(args)...))) {
+		return Op(std::forward<decltype(args)>(args)...);
+	}
+	//
+	// static constexpr auto operator()(tuple_like auto & arg) noexcept(noexcept(Op(std::forward<decltype(args)>(args)...))) {
+	//	return Op(std::forward<decltype(args)>(args)...);
+	//}
+};
+
+template <typename Op> struct callable {
+	static constexpr auto operator()(auto &&... args) noexcept(noexcept(Op{}(std::forward<decltype(args)>(args)...))) {
+		return Op{}(std::forward<decltype(args)>(args)...);
+	}
+};
+
 } // namespace shorty::ops
 
 // nothing :)
@@ -126,19 +177,17 @@ template <typename Op, typename... Operands> struct node;
 
 template <typename T> using select = std::remove_cvref_t<T>;
 
-struct argument_info;
-
 template <typename T>
 concept knows_minimal_argument_count = requires {
 	requires std::same_as<std::remove_cvref_t<decltype(T::argc_at_least)>, std::size_t>;
 };
 
-template <typename T> concept knows_exact_argument_count = requires {
-	requires std::same_as<std::remove_cvref_t<decltype(T::argc)>, std::size_t>;
+template <typename T> concept can_calculate_exact_argument_count = requires {
+	{ T::arg_info.consistent } -> std::convertible_to<bool>;
 };
 
-template <typename T> concept can_calculate_exact_argument_count = requires {
-	{ T::calculate_argument_count() } noexcept -> std::same_as<argument_info>;
+template <typename T> concept has_group_type = requires {
+	typename std::remove_cvref_t<T>::group;
 };
 
 struct ast_node;
@@ -165,45 +214,71 @@ struct shorty_constraint_failure {
 };
 #endif
 
-struct argument_info {
+struct incosistent_groups {
+	static constexpr bool consistent = false;
+};
+
+struct neutral_info {
+	static constexpr bool consistent = true;
+
+	consteval friend neutral_info operator+(neutral_info, neutral_info) noexcept {
+		return {};
+	}
+};
+
+consteval incosistent_groups operator+(incosistent_groups, incosistent_groups) noexcept {
+	return {};
+}
+
+template <typename Group> struct argument_info {
 	std::size_t min = 0;
-	std::size_t exact = std::dynamic_extent;
-	bool consistent = true;
+	static constexpr std::size_t exact = 0;
+	static constexpr bool consistent = true;
+
+	consteval operator incosistent_groups() const noexcept {
+		return {};
+	}
 
 	consteval friend argument_info operator+(const argument_info & lhs, const argument_info & rhs) noexcept {
 		return argument_info{
 			.min = std::max(lhs.min, rhs.min),
-			.exact = (lhs.exact == std::dynamic_extent) ? rhs.exact : lhs.exact,
-			.consistent = lhs.exact == rhs.exact,
 		};
 	}
 
-	consteval std::size_t exact_or(std::size_t provided) const noexcept {
+	consteval friend argument_info operator+(neutral_info, const argument_info & rhs) noexcept {
+		return rhs;
+	}
+
+	consteval friend argument_info operator+(const argument_info & lhs, neutral_info) noexcept {
+		return lhs;
+	}
+
+	static consteval std::size_t exact_or(std::size_t provided) noexcept {
 		return exact == std::dynamic_extent ? provided : exact;
 	}
 
-	static constexpr argument_info from_min(std::size_t c) {
-		return {.min = c, .exact = std::dynamic_extent, .consistent = true};
-	}
-
-	static constexpr argument_info from_exact(std::size_t c) {
-		return {.min = c, .exact = c, .consistent = true};
-	}
-
-	template <typename T> static consteval argument_info from() {
-		if constexpr (can_calculate_exact_argument_count<T>) {
-			return T::calculate_argument_count();
-		} else if constexpr (knows_minimal_argument_count<T>) {
-			return argument_info::from_min(std::remove_cvref_t<T>::argc_at_least);
-		} else if constexpr (knows_exact_argument_count<T>) {
-			return argument_info::from_exact(std::remove_cvref_t<T>::argc);
-		} else if constexpr (std::convertible_to<ast_node, T>) {
-			return {};
+	template <typename T> static consteval argument_info from() noexcept {
+		if constexpr (knows_minimal_argument_count<T>) {
+			return {.min = std::remove_cvref_t<T>::argc_at_least};
 		} else {
 			return {};
 		}
 	}
 };
+
+template <typename T> static constexpr auto argument_info_about = [] {
+	if constexpr (can_calculate_exact_argument_count<T>) {
+		return T::arg_info;
+	} else if constexpr (has_group_type<T>) {
+		return argument_info<typename T::group>::template from<T>();
+	} else if constexpr (knows_minimal_argument_count<T>) {
+		return argument_info<default_group>{.min = std::remove_cvref_t<T>::argc_at_least};
+	} else if constexpr (std::convertible_to<ast_node, T>) {
+		return neutral_info{};
+	} else {
+		return neutral_info{};
+	}
+}();
 
 consteval bool validate_minimal_number_of_arguments(std::size_t provided, std::size_t expected) {
 	if (expected > provided) {
@@ -285,13 +360,13 @@ struct ast_node {
 		return node<ops::index, select<Self>, select<Args>...>{std::forward<Self>(self), std::forward<Args>(args)...};
 	}
 
-	template <typename Self> static constexpr auto call_info = argument_info::from<std::remove_cvref_t<Self>>();
+	template <typename Self> static constexpr auto call_info = argument_info_about<std::remove_cvref_t<Self>>;
 	template <typename... Args> static constexpr auto number_of_arguments = gather_number_of_arguments<Args...>();
 
 	// this is only called outside
 	// this gymnastics is also to improve error message
-	template <typename Self, typename... Args, auto argn = number_of_arguments<Args...>, auto min_argn_expected = call_info<Self>.min, auto exact_argn_expected = call_info<Self>.exact>
-	constexpr auto operator()(this Self && self, Args &&... args) requires(validate_minimal_number_of_arguments(argn, min_argn_expected) && validate_exact_number_of_arguments(argn, exact_argn_expected))
+	template <typename Self, typename... Args, auto argn = number_of_arguments<Args...>, auto min_argn_expected = call_info<Self>.min>
+	[[nodiscard]] constexpr auto operator()(this Self && self, Args &&... args) requires(validate_minimal_number_of_arguments(argn, min_argn_expected))
 	{
 		if constexpr (sizeof...(Args) == 1 && tuple_like<first<Args...>>) {
 			auto && first_arg = first_thing(std::forward<Args>(args)...);
@@ -310,7 +385,7 @@ struct ast_node {
 };
 
 template <typename T, typename... Args> constexpr decltype(auto) evaluate(T && obj, [[maybe_unused]] Args &&... args) {
-	if constexpr (requires { obj(std::forward<Args>(args)...); }) {
+	if constexpr (requires { obj.eval(std::forward<Args>(args)...); }) {
 		return obj.eval(std::forward<Args>(args)...);
 	} else {
 		return obj;
@@ -318,7 +393,8 @@ template <typename T, typename... Args> constexpr decltype(auto) evaluate(T && o
 }
 
 template <typename Op, typename... Operands> struct node: ast_node {
-	static constexpr bool consistent = (argument_info::from<std::remove_cvref_t<Operands>>() + ...).consistent;
+	static constexpr auto arg_info = (argument_info_about<std::remove_cvref_t<Operands>> + ... + neutral_info{});
+	static constexpr bool consistent = arg_info.consistent;
 	static_assert(consistent, "expected number of arguments is not consistent (hint: mixing something like $lhs and $x?)");
 	using base_node = node;
 
@@ -328,10 +404,6 @@ template <typename Op, typename... Operands> struct node: ast_node {
 	node(node &&) = default;
 	node(const node &) = default;
 	constexpr node(std::convertible_to<Operands> auto &&... _ast_operands): ast_operands{std::forward<decltype(_ast_operands)>(_ast_operands)...} { }
-
-	static consteval argument_info calculate_argument_count() noexcept {
-		return (argument_info::from<std::remove_cvref_t<Operands>>() + ...); // merge together
-	}
 
 	template <typename... Args> constexpr auto eval(Args &&... args) const {
 #if __cpp_structured_bindings >= 202411L
@@ -348,6 +420,7 @@ template <typename Op, typename... Operands> struct node: ast_node {
 // this will return Nth argument from the shorty's lambda
 template <unsigned N> struct nth_argument: ast_node {
 	static constexpr std::size_t argc_at_least = N + 1;
+	using group = default_group;
 
 	template <typename... Args> constexpr auto eval(Args &&... args) const {
 		static_assert(N < sizeof...(Args));
@@ -359,12 +432,15 @@ template <unsigned N> struct nth_argument: ast_node {
 	}
 };
 
-// same as `nth-argument` but need exactly `Count` arguments of shorty's lambda
-template <unsigned N, unsigned Count> struct nth_argument_of_k: ast_node {
-	static constexpr std::size_t argc = Count;
+template <unsigned N, typename Group = void> struct nth_argument_with_group: ast_node {
+	static constexpr std::size_t argc_at_least = N + 1;
+	using group = Group;
 
 	template <typename... Args> constexpr auto eval(Args &&... args) const {
-		static_assert(Count == sizeof...(Args));
+		if constexpr (requires { Group::arity; }) {
+			static_assert(Group::arity == sizeof...(Args));
+		}
+
 		static_assert(N < sizeof...(Args));
 #if __cpp_pack_indexing >= 202311L
 		return args...[N];
@@ -373,8 +449,6 @@ template <unsigned N, unsigned Count> struct nth_argument_of_k: ast_node {
 #endif
 	}
 };
-
-static_assert(knows_exact_argument_count<nth_argument_of_k<2, 3>>);
 
 // same as `nth-argument` but `Query` callable must return true for argument of `std::type_identity<T>`
 template <unsigned N, auto Query> struct nth_argument_with_query: ast_node {
@@ -463,42 +537,78 @@ constexpr auto $9 = $arg<9>;
 // for niceness
 constexpr auto $it = shorty::nth_argument_with_query<0, []<typename T> { return std::input_or_output_iterator<T>; }>{};
 
-constexpr auto $i = shorty::nth_argument_of_k<0, 1>{};
-constexpr auto $n = shorty::nth_argument_of_k<0, 1>{};
-constexpr auto $k = shorty::nth_argument_of_k<0, 1>{};
+constexpr auto $i = shorty::nth_argument_with_group<0, shorty::group<1, 'i'>>{};
+constexpr auto $n = shorty::nth_argument_with_group<0, shorty::group<1, 'n'>>{};
+constexpr auto $k = shorty::nth_argument_with_group<0, shorty::group<1, 'k'>>{};
 
-constexpr auto $lhs = shorty::nth_argument_of_k<0, 2>{};
-constexpr auto $rhs = shorty::nth_argument_of_k<1, 2>{};
+constexpr auto $lhs = shorty::nth_argument_with_group<0, shorty::binary_ops>{};
+constexpr auto $rhs = shorty::nth_argument_with_group<1, shorty::binary_ops>{};
 
-constexpr auto $x = shorty::nth_argument_of_k<0, 3>{};
-constexpr auto $y = shorty::nth_argument_of_k<1, 3>{};
-constexpr auto $z = shorty::nth_argument_of_k<2, 3>{};
+constexpr auto $in = shorty::nth_argument_with_group<0, shorty::unary_ops>{};
 
-constexpr auto $a = shorty::nth_argument_of_k<0, 3>{};
-constexpr auto $b = shorty::nth_argument_of_k<1, 3>{};
-constexpr auto $c = shorty::nth_argument_of_k<2, 3>{};
+constexpr auto $x = shorty::nth_argument_with_group<0, shorty::xyz>{};
+constexpr auto $y = shorty::nth_argument_with_group<1, shorty::xyz>{};
+constexpr auto $z = shorty::nth_argument_with_group<2, shorty::xyz>{};
 
-// reference to external variable
-template <typename T> constexpr auto $(T & ref) {
-	return shorty::reference<T>(ref);
+constexpr auto $a = shorty::nth_argument_with_group<0, shorty::abc>{};
+constexpr auto $b = shorty::nth_argument_with_group<1, shorty::abc>{};
+constexpr auto $c = shorty::nth_argument_with_group<2, shorty::abc>{};
+constexpr auto $d = shorty::nth_argument_with_group<3, shorty::abc>{};
+constexpr auto $e = shorty::nth_argument_with_group<4, shorty::abc>{};
+constexpr auto $f = shorty::nth_argument_with_group<5, shorty::abc>{};
+
+// `$cast<T>(expr)` or `$<T>(expr)` are lazy static_cast
+template <typename T> constexpr auto $cast(auto && arg) {
+	return node<ops::cast<T>, select<decltype(arg)>>{std::forward<decltype(arg)>(arg)};
+}
+template <typename T> constexpr auto $(auto && arg) {
+	return node<ops::cast<T>, select<decltype(arg)>>{std::forward<decltype(arg)>(arg)};
 }
 
-template <typename T> constexpr auto $(const T & ref) {
-	return shorty::reference<const T>(ref);
+// `$<fnc>(args...)` or `$call<fnc>(args...)` are lazy function
+template <auto Op> constexpr auto $(auto &&... arg) {
+	return node<ops::call<Op>, select<decltype(arg)>...>{std::forward<decltype(arg)>(arg)...};
 }
 
-//// apply function on result
-// template <auto CustomOp> constexpr auto $(auto &&... args) {
-//	return shorty::apply<CustomOp>(std::forward<decltype(args)>(args)...);
-// }
-//
-//// cast to type
-// template <typename T> constexpr auto $(auto &&... args) {
-//	return shorty::cast<T>(std::forward<decltype(args)>(args)...);
-// }
-//
-// compile time known constant
+template <auto Op> constexpr auto $call(auto &&... arg) {
+	return node<ops::call<Op>, select<decltype(arg)>...>{std::forward<decltype(arg)>(arg)...};
+}
+
+template <typename T> concept callable = requires {
+	T::operator();
+};
+
+// `$<callable>(args...)` or `$call<callable>(args...)` are lazy function
+template <callable Op> constexpr auto $(auto &&... arg) {
+	return node<ops::callable<Op>, select<decltype(arg)>...>{std::forward<decltype(arg)>(arg)...};
+}
+template <typename Op> constexpr auto $call(auto &&... arg) {
+	return node<ops::callable<Op>, select<decltype(arg)>...>{std::forward<decltype(arg)>(arg)...};
+}
+
+// `$value(VALUE)
+constexpr auto $value(auto && ref) noexcept {
+	return shorty::value(std::forward<decltype(ref)>(ref));
+}
+constexpr auto $val(auto && ref) noexcept {
+	return shorty::value(std::forward<decltype(ref)>(ref));
+}
+// `$(REF)` or `$(CREF)`
+constexpr auto $(auto & ref) noexcept {
+	return shorty::reference<std::remove_reference_t<decltype(ref)>>(ref);
+}
+constexpr auto $(const auto & ref) noexcept {
+	return shorty::reference<const std::remove_reference_t<decltype(ref)>>(ref);
+}
+constexpr auto $ref(auto & ref) noexcept {
+	return shorty::reference<std::remove_reference_t<decltype(ref)>>(ref);
+}
+constexpr auto $ref(const auto & ref) noexcept {
+	return shorty::reference<const std::remove_reference_t<decltype(ref)>>(ref);
+}
+// `$const<VALUE>` (CNTTP constant)
 template <auto V> constexpr auto $const = shorty::constant<V>{};
+template <auto V> constexpr auto $fixed = shorty::constant<V>{};
 
 } // namespace shorty::literals
 
