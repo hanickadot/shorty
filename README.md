@@ -30,7 +30,7 @@ auto mapping = indices | $(data)[$i];
 
 ## accessing arguments
 
-If shorty callable gets only one argument and the argument is `tuple_like` then it's automatically unwrapper. Same applies to any lazy calls.
+If shorty callable gets only one argument and the argument is `tuple_like` then it's automatically unwrapped. Same applies to any lazy calls.
 
 By default arguments are accessible using `$0`...`$9` syntax (for first 10) or `$arg<N>`. But also you can use following special arguments:
 
@@ -67,9 +67,9 @@ By default arguments are accessible using `$0`...`$9` syntax (for first 10) or `
 
 ## assigning
 
-- `$a += 2` will add 2 to `$a` and return resul
+- `$a += 2` will add 2 to `$a` and return result
 - `-=`, `*=`, `/=`, `%=` all works too
 
 ----
 
-Special thanks (and a bit of hate) to an [anonymous Argentinian](https://bsky.app/profile/kaballo86.bsky.social) for nerd-snipping into this.
+Special thanks (and a bit of hate) to an [anonymous Argentinian](https://bsky.app/profile/kaballo86.bsky.social) for nerd-sniping into this.
